@@ -31,7 +31,7 @@ Aplicacion Android para monitorizar sesiones de sueno usando acelerometro y micr
 - Autenticacion local con registro, login, recuperacion de contrasena preparada para backend y eliminacion de cuenta.
 - Persistencia local con Room para usuarios, sesiones, fases, muestras de sensores, resumenes y recomendaciones.
 - Integracion de backend REST (Retrofit) para usuarios, sesiones y recomendaciones.
-- Cola local de tareas de sincronizacion para reintentar operaciones cuando falle la red (`sync_tasks` en Room).
+- Cola local de tareas de sincronizacion para reintentar operaciones cuando falle la red (persistida en `SharedPreferences`).
 - Sesion nocturna con `Foreground Service`, captura de acelerometro y microfono, cierre manual o por ventana inteligente y recuperacion de estado.
 - Reporte final con puntuacion, fases detectadas, resumen de ruido/movimiento, recomendaciones y feedback del usuario.
 - Perfil con aviso de privacidad, precision limitada y datos utiles para la futura capa IA.
@@ -68,7 +68,7 @@ La sincronizacion funciona asi:
 
 1. La app escribe primero en Room (fuente de verdad local).
 2. En paralelo, intenta enviar el cambio al backend (`BackendSyncRepository`).
-3. Si el backend falla/no hay red, se guarda una tarea en `sync_tasks`.
+3. Si el backend falla/no hay red, se guarda una tarea en una cola local persistida.
 4. En sincronizaciones posteriores (por ejemplo al abrir recomendaciones), se reintentan tareas pendientes (`flushPendingTasks`).
 5. La app tambien hace pull de recomendaciones remotas y las persiste en Room para uso offline.
 
@@ -80,7 +80,7 @@ La persistencia local cubre:
 - Sesiones de sueno y resultados.
 - Muestras de sensores y resumenes.
 - Recomendaciones.
-- Cola de sincronizacion pendiente (`sync_tasks`).
+- Cola de sincronizacion pendiente en `SharedPreferences`.
 
 Esto permite continuar usando la app sin conexion y sincronizar cambios cuando vuelva la conectividad.
 

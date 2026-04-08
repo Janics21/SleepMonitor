@@ -26,6 +26,7 @@ class AppViewModelFactory(
     private val backendSyncRepository by lazy {
         BackendSyncRepository(
             db = database,
+            context = context.applicationContext,
             api = BackendApiFactory.create()
         )
     }
