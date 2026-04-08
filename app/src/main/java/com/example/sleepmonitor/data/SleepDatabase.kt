@@ -10,6 +10,7 @@ import com.example.sleepmonitor.data.local.dao.RecommendationDao
 import com.example.sleepmonitor.data.local.dao.SensorSampleDao
 import com.example.sleepmonitor.data.local.dao.SensorSummaryDao
 import com.example.sleepmonitor.data.local.dao.SleepSessionDao
+import com.example.sleepmonitor.data.local.dao.SyncTaskDao
 import com.example.sleepmonitor.data.local.dao.UserDao
 import com.example.sleepmonitor.data.local.entities.PasswordResetTokenEntity
 import com.example.sleepmonitor.data.local.entities.PhaseEntity
@@ -17,6 +18,7 @@ import com.example.sleepmonitor.data.local.entities.RecommendationEntity
 import com.example.sleepmonitor.data.local.entities.SensorSampleEntity
 import com.example.sleepmonitor.data.local.entities.SensorSummaryEntity
 import com.example.sleepmonitor.data.local.entities.SleepSessionEntity
+import com.example.sleepmonitor.data.local.entities.SyncTaskEntity
 import com.example.sleepmonitor.data.local.entities.UserEntity
 
 @Database(
@@ -27,9 +29,10 @@ import com.example.sleepmonitor.data.local.entities.UserEntity
         SensorSampleEntity::class,
         SensorSummaryEntity::class,
         RecommendationEntity::class,
-        PasswordResetTokenEntity::class
+        PasswordResetTokenEntity::class,
+        SyncTaskEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -41,6 +44,7 @@ abstract class SleepDatabase : RoomDatabase() {
     abstract fun sensorSummaryDao(): SensorSummaryDao
     abstract fun recommendationDao(): RecommendationDao
     abstract fun passwordResetTokenDao(): PasswordResetTokenDao
+    abstract fun syncTaskDao(): SyncTaskDao
 
     companion object {
         @Volatile

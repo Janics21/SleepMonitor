@@ -8,6 +8,7 @@ import com.example.sleepmonitor.data.local.entities.SensorSampleEntity
 import com.example.sleepmonitor.data.local.entities.SensorSummaryEntity
 import com.example.sleepmonitor.data.local.entities.SleepSessionEntity
 import com.example.sleepmonitor.data.local.entities.UserEntity
+import com.example.sleepmonitor.data.remote.BackendSyncRepository
 import com.example.sleepmonitor.domain.sleep.RuleBasedSleepInsightsEngine
 import com.example.sleepmonitor.ui.utils.IdUtils
 import com.example.sleepmonitor.ui.utils.PasswordHasher
@@ -20,7 +21,10 @@ sealed class Result<out T> {
     data class Error(val message: String) : Result<Nothing>()
 }
 
-class AuthRepository(private val db: SleepDatabase) {
+class AuthRepository(
+    private val db: SleepDatabase,
+    private val backendSyncRepository: BackendSyncRepository? = null
+) {
 
     suspend fun register(
         email: String,
@@ -51,6 +55,7 @@ class AuthRepository(private val db: SleepDatabase) {
             fechaNacimiento = fechaNacimiento
         )
         db.userDao().insertUser(user)
+        backendSyncRepository?.pushUser(user)
         return Result.Success(user)
     }
 
@@ -98,6 +103,7 @@ class AuthRepository(private val db: SleepDatabase) {
         if (!PasswordHasher.verify(password, user.passwordHash)) {
             return Result.Error("La contrasena es incorrecta")
         }
+        backendSyncRepository?.deleteUser(userId)
         db.userDao().deleteUser(user)
         return Result.Success(Unit)
     }
@@ -115,7 +121,10 @@ data class SleepSessionReport(
     val precisionNotice: String
 )
 
-class SleepRepository(private val db: SleepDatabase) {
+class SleepRepository(
+    private val db: SleepDatabase,
+    private val backendSyncRepository: BackendSyncRepository? = null
+) {
 
     suspend fun startSession(
         userId: String,
@@ -132,6 +141,7 @@ class SleepRepository(private val db: SleepDatabase) {
             sampleIntervalMs = sampleIntervalMs
         )
         db.sleepSessionDao().insertSession(session)
+        backendSyncRepository?.pushSession(session)
         return session
     }
 
@@ -155,15 +165,15 @@ class SleepRepository(private val db: SleepDatabase) {
         db.sensorSummaryDao().insertSummary(analysis.summary)
         db.recommendationDao().deleteForSession(sessionId)
         analysis.recommendations.forEach { recommendation ->
-            db.recommendationDao().insertRecommendation(
-                RecommendationEntity(
-                    recId = IdUtils.newId(),
-                    userId = session.userId,
-                    sessionId = sessionId,
-                    title = recommendation.title,
-                    description = recommendation.description
-                )
+            val entity = RecommendationEntity(
+                recId = IdUtils.newId(),
+                userId = session.userId,
+                sessionId = sessionId,
+                title = recommendation.title,
+                description = recommendation.description
             )
+            db.recommendationDao().insertRecommendation(entity)
+            backendSyncRepository?.pushRecommendation(entity)
         }
         db.sleepSessionDao().completeSession(
             sessionId = sessionId,
@@ -174,6 +184,7 @@ class SleepRepository(private val db: SleepDatabase) {
             engineVersion = RuleBasedSleepInsightsEngine.version,
             sensorFailure = analysis.sensorFailure
         )
+        db.sleepSessionDao().getSessionById(sessionId)?.let { backendSyncRepository?.pushSession(it) }
         purgeOldSamples()
         return getReport(sessionId) ?: error("No se pudo construir el reporte")
     }
@@ -182,6 +193,7 @@ class SleepRepository(private val db: SleepDatabase) {
         val session = db.sleepSessionDao().getSessionById(sessionId) ?: return
         val discrepancy = session.aiScore?.let { abs(it - score) } ?: 0
         db.sleepSessionDao().setUserScore(sessionId, score, discrepancy)
+        db.sleepSessionDao().getSessionById(sessionId)?.let { backendSyncRepository?.pushSession(it) }
     }
 
     suspend fun skipUserFeedback(sessionId: String) {
@@ -239,13 +251,21 @@ class SleepRepository(private val db: SleepDatabase) {
     }
 }
 
-class RecommendationRepository(private val db: SleepDatabase) {
+class RecommendationRepository(
+    private val db: SleepDatabase,
+    private val backendSyncRepository: BackendSyncRepository? = null
+) {
 
     fun getRecommendationsFlow(userId: String): Flow<List<RecommendationEntity>> =
         db.recommendationDao().getRecommendationsForUser(userId)
 
     suspend fun hasRecommendations(userId: String): Boolean =
         db.recommendationDao().countForUser(userId) > 0
+
+    suspend fun syncFromBackend(userId: String) {
+        backendSyncRepository?.pullRecommendations(userId)
+        backendSyncRepository?.flushPendingTasks()
+    }
 
     fun getGenericRecommendations(): List<Pair<String, String>> = listOf(
         "Manten una rutina estable" to "Intenta acostarte y levantarte a una hora parecida incluso los fines de semana.",
