@@ -4,9 +4,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.liveData
+import androidx.lifecycle.viewModelScope
 import com.example.sleepmonitor.data.local.entities.RecommendationEntity
 import com.example.sleepmonitor.data.repository.RecommendationRepository
 import com.example.sleepmonitor.ui.utils.SessionManager
+import kotlinx.coroutines.launch
 
 class RecommendationsViewModel(
     private val repository: RecommendationRepository,
@@ -14,6 +16,14 @@ class RecommendationsViewModel(
 ) : ViewModel() {
 
     private val userId: String? = sessionManager.getUserId()
+
+    init {
+        userId?.let { uid ->
+            viewModelScope.launch {
+                repository.syncFromBackend(uid)
+            }
+        }
+    }
 
     val recommendations: LiveData<List<RecommendationEntity>> =
         userId?.let { repository.getRecommendationsFlow(it).asLiveData() }
