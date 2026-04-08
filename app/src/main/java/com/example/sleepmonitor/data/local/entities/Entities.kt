@@ -170,3 +170,16 @@ data class PasswordResetTokenEntity(
     val expiresAt: Long,
     val used: Boolean = false
 )
+
+@Entity(
+    tableName = "sync_tasks",
+    indices = [Index(value = ["entityType", "entityId"])]
+)
+data class SyncTaskEntity(
+    @PrimaryKey val taskId: String,
+    val entityType: String,
+    val entityId: String,
+    val action: String,
+    val payloadJson: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
