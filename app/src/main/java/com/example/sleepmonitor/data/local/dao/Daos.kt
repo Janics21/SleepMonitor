@@ -12,6 +12,7 @@ import com.example.sleepmonitor.data.local.entities.RecommendationEntity
 import com.example.sleepmonitor.data.local.entities.SensorSampleEntity
 import com.example.sleepmonitor.data.local.entities.SensorSummaryEntity
 import com.example.sleepmonitor.data.local.entities.SleepSessionEntity
+import com.example.sleepmonitor.data.local.entities.SyncTaskEntity
 import com.example.sleepmonitor.data.local.entities.UserEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -184,4 +185,16 @@ interface PasswordResetTokenDao {
 
     @Query("DELETE FROM password_reset_tokens WHERE expiresAt < :now")
     suspend fun purgeExpired(now: Long = System.currentTimeMillis())
+}
+
+@Dao
+interface SyncTaskDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: SyncTaskEntity)
+
+    @Query("SELECT * FROM sync_tasks ORDER BY createdAt ASC")
+    suspend fun getAll(): List<SyncTaskEntity>
+
+    @Query("DELETE FROM sync_tasks WHERE taskId = :taskId")
+    suspend fun deleteTask(taskId: String)
 }
